@@ -1,71 +1,51 @@
 <script setup>
-import { onMounted, onUpdated, ref, watch } from 'vue';
-import { Preferences } from '@capacitor/preferences';
-import { Dialog } from '@capacitor/dialog';
-import JsBarcode from 'jsbarcode';
-
-"use strict";
-
-const barcode = ref(null);
+import { onMounted, ref, computed } from "vue";
+import { Preferences } from "@capacitor/preferences";
+import Barcode from "@/components/Barcode.vue";
+import KeyPad from "@/components/KeyPad.vue";
+import GraphicBottomBottom from "@/components/graphics/GraphicBottomBottom.vue";
+import GraphicBottomTop from "@/components/graphics/GraphicBottomTop.vue";
+import GraphicTopBottom from "@/components/graphics/GraphicTopBottom.vue";
+import GraphicTopTop from "@/components/graphics/GraphicTopTop.vue";
 
 onMounted(async () => {
   loadBarcode();
 });
 
-watch(barcode, renderBarcode, { flush: 'post' })
-
 async function loadBarcode() {
-  const { value } = await Preferences.get({ key: 'barcode' });
+  const { value } = await Preferences.get({ key: "barcode" });
   if (value) {
     barcode.value = value;
+    hasBarcode.value = true;
   }
-}
-
-async function saveBarcode() {
-  await Preferences.set({ key: 'barcode', value: barcode.value });
 }
 
 async function deleteBarcode() {
-  barcode.value = null;
-  await Preferences.remove({ key: 'barcode' });
+  barcode.value = Array(6);
+  barcodeIndex.value = 0;
+  hasBarcode.value = false;
+  await Preferences.remove({ key: "barcode" });
 }
 
-async function askForBarcode() {
-  const { value } = await Dialog.prompt({
-    message: `What's membership number?`,
-  });
-  // test value exists and its six digits
-  if (value && /^\d{6}$/.test(value)) {
-    barcode.value = value;
-    saveBarcode();
-  }
-  else {
-    await Dialog.alert({
-      message: `Invalid membership number`,
-    });
-  }
+const hasBarcode = ref(false);
+const barcode = ref(Array(6));
+const barcodeIndex = ref(0);
+
+const barcodeIsValid = computed(() => {
+  return !barcode.value.includes(undefined);
+});
+
+function keyEntered(key) {
+  barcode.value[barcodeIndex.value] = key;
+  barcodeIndex.value++;
 }
 
-// function to generate barcode
-function renderBarcode() {
-  if (barcode.value) {
-    JsBarcode('#barcode', barcode.value, {
-      format: "CODE39",
-      width: 2,
-      height: 100,
-      displayValue: true,
-      fontOptions: "",
-      font: "monospace",
-      textAlign: "center",
-      textPosition: "top",
-      textMargin: 2,
-      fontSize: 20,
-      background: "#ffffff",
-      lineColor: "#000000",
-      margin: 10,
-    });
+function backspace() {
+  if (barcodeIndex.value !== 0) {
+    barcodeIndex.value--;
   }
-};
+  barcode.value[barcodeIndex.value] = undefined;
+}
 </script>
 
 <template>
@@ -73,84 +53,112 @@ function renderBarcode() {
     <h1>GHF Express</h1>
   </header>
 
-  <main v-if="!barcode">
-    <button @click="askForBarcode">Enter Barcode</button>
-  </main>
-
-  <main v-else>
-    <p>Scan this card to check into the club</p>
-    <div id="barcode-container">
-      <img id="barcode" />
-    </div>
-    <button @click="deleteBarcode">Delete Barcode</button>
-  </main>
+  <Transition :name="hasBarcode ? '' : 'fade'" mode="out-in">
+    <Barcode
+      v-if="barcodeIsValid"
+      instructions="Scan the barcode to check into the club"
+      :barcode="barcode"
+      @delete="deleteBarcode"
+    />
+    <KeyPad
+      v-else
+      instructions="Enter your 6-digit membership ID"
+      :barcode="barcode"
+      :barcodeIndex="barcodeIndex"
+      @backspace="backspace"
+      @key="keyEntered"
+    />
+  </Transition>
 
   <footer>
-    <a href="https://github.com/SpiffyCloud/ghf-express" target="_blank">GHF Express v1.0.0 | SpiffyCloud</a>
+    <a href="https://github.com/SpiffyCloud/ghf-express" target="_blank">
+      GHF Express v1.0.0 | SpiffyCloud
+    </a>
   </footer>
+
+  <div class="theme">
+    <GraphicTopBottom />
+    <GraphicTopTop />
+    <GraphicBottomBottom />
+    <GraphicBottomTop />
+  </div>
 </template>
 
 <style>
+:root {
+  --color-primary: #093565;
+  --color-secondary: white;
+  --color-field: #072d54;
+  --color-button: rgba(255, 255, 255, 0.25);
+  --color-button-press: rgba(255, 255, 255, 0.5);
+  --color-danger: indianred;
+  --color-button-danger: rgba(205, 92, 92, 0.5);
+  --theme-top: #0046ad;
+  --theme-bottom: #04387c;
+}
+
 body {
-  background-color: #5DBB61;
   padding: 0;
   margin: 0;
+  background-color: var(--color-primary);
 }
 
 #app {
-  font-family: sans-serif;
+  font-family: Arial, sans-serif;
   text-align: center;
-  background-color: #093565;
-  color: white;
+  color: var(--color-secondary);
   height: calc(100vh - 2rem);
   display: flex;
   flex-direction: column;
+  justify-content: end;
   margin-top: 2rem;
 }
 
 h1 {
-  background-color: #5DBB61;
   margin: 0;
-  padding: .5rem;
+  padding-top: 2rem;
+}
+
+@media screen and (min-height: 896px) {
+  h1 {
+    padding-top: 4rem;
+  }
 }
 
 main {
+  flex-grow: 1;
   display: flex;
   flex-direction: column;
-  justify-content: space-evenly;
-  flex-grow: 1;
-}
-
-#barcode-container {
-  background-color: white;
-  margin: 0 auto;
-  border-radius: .5rem;
-  padding: .5rem;
-  width: calc(100% - 4rem);
-  max-width: 20rem;
-}
-
-#barcode-container img {
-  width: 100%;
-  height: 100%;
-}
-
-button {
-  background-color: indianred;
-  border: none;
-  color: inherit;
-  font-size: 1rem;
-  border-radius: .5rem;
-  padding: 1rem 1.5rem;
-  margin: 0 auto;
+  justify-content: space-between;
 }
 
 a {
   display: block;
-  color: inherit;
-  width: 100%;
-  font-size: .75rem;
+  color: var(--color-button-press);
+  width: 75%;
+  font-size: 0.75rem;
   text-decoration: none;
   margin: 1.5rem auto;
+}
+
+.theme {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  z-index: -1;
+}
+
+.theme svg {
+  position: absolute;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease-out;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>
