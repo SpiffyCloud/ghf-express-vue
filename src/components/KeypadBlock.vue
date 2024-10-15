@@ -1,20 +1,36 @@
 <script setup>
-import { computed } from "@vue/reactivity";
-const emit = defineEmits(["key", "backspace"]);
-const props = defineProps(["barcode", "barcodeIndex", "instructions"]);
+import { ref, computed } from "vue";
 
-const disableBackspace = computed(() => props.barcodeIndex === 0);
+const emit = defineEmits(["saveBarcode"]);
+
+const barcode = ref("");
+
+const barcodeDigits = computed(() => {
+  const digits = barcode.value.split("");
+  return Array.from({ length: 6 }, (_, index) => digits[index] || "•");
+});
+
+const disableBackspace = computed(() => barcode.value.length === 0);
 
 function keyEntered(event) {
-  emit("key", event.target.textContent);
+  if (barcode.value.length < 6) {
+    barcode.value += event.target.textContent;
+  }
+  if (barcode.value.length === 6) {
+    emit("saveBarcode", barcode.value);
+  }
+}
+
+function backspace() {
+  barcode.value = barcode.value.slice(0, -1);
 }
 </script>
 
 <template>
   <main>
-    <p>{{ instructions }}</p>
+    <p>Enter your 6-digit membership ID</p>
     <div class="digits">
-      <div class="digits-text" v-for="(digit, index) in barcode" :key="index">
+      <div class="digits-text" v-for="(digit, index) in barcodeDigits" :key="index">
         {{ digit }}
       </div>
     </div>
@@ -30,18 +46,14 @@ function keyEntered(event) {
       <div @click="keyEntered" class="keypad__key">9</div>
       <div class="keypad__key empty"></div>
       <div @click="keyEntered" class="keypad__key">0</div>
-      <div
-        @click="emit('backspace')"
-        :class="{ disabled: disableBackspace }"
-        class="keypad__key backspace"
-      >
+      <div @click="backspace" :class="{ disabled: disableBackspace }" class="keypad__key backspace">
         &#9003;
       </div>
     </div>
   </main>
 </template>
 
-<style>
+<style scoped>
 .digits {
   display: flex;
   flex-direction: row;

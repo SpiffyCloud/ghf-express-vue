@@ -1,14 +1,11 @@
 <script setup>
-import { computed, onMounted } from "vue";
-import { Preferences } from "@capacitor/preferences";
+import { ref, computed, onMounted } from "vue";
 import JsBarcode from "jsbarcode";
 
-const emit = defineEmits(["delete"]);
-const props = defineProps(["barcode", "instructions"]);
-
-const membershipId = computed(() => {
-  return props.barcode.toString().replaceAll(",", "");
+const props = defineProps({
+  barcode: { type: String, required: true }
 });
+const emit = defineEmits(["delete"]);
 
 const barcodeHeight = computed(() => {
   if (window.innerHeight >= 896) {
@@ -18,7 +15,7 @@ const barcodeHeight = computed(() => {
 });
 
 onMounted(async () => {
-  JsBarcode(".barcode", membershipId.value, {
+  JsBarcode(".barcode", props.barcode, {
     format: "CODE39",
     width: 2,
     height: barcodeHeight.value,
@@ -33,17 +30,12 @@ onMounted(async () => {
     lineColor: "var(--color-primary)",
     margin: 10,
   });
-  saveBarcode();
 });
-
-async function saveBarcode() {
-  await Preferences.set({ key: "barcode", value: membershipId.value });
-}
 </script>
 
 <template>
   <main>
-    <p>{{ instructions }}</p>
+    <p>Scan the barcode to check into the club</p>
     <div class="barcode-container">
       <div class="barcode-sticker">
         <svg class="barcode"></svg>
@@ -53,7 +45,7 @@ async function saveBarcode() {
   </main>
 </template>
 
-<style>
+<style scoped>
 .barcode-container {
   flex-grow: 1;
   display: flex;
@@ -85,7 +77,7 @@ async function saveBarcode() {
   border-radius: 0.5rem;
   padding: 1rem 2rem;
   margin: 0 auto;
-  margin-bottom: 2rem;
+  margin-bottom: 7rem;
   transition: background ease-out 100ms;
 }
 
